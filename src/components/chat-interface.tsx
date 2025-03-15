@@ -1,23 +1,40 @@
 "use client"
 
 import type React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { useChat } from "@ai-sdk/react"
 import { AnimatePresence, motion } from "motion/react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card } from "@/components/ui/card"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { 
-  Send, PaperclipIcon, Sparkles, Bot, User, ChevronDown, ImagePlus, FileAudio, MoreHorizontal, 
-  Clock, Check, RefreshCw 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
+  Send,
+  PaperclipIcon,
+  Sparkles,
+  Bot,
+  User,
+  ChevronDown,
+  ImagePlus,
+  FileAudio,
+  MoreHorizontal,
+  Clock,
+  Check,
+  RefreshCw,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Message } from "ai"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ReactMarkdown from "react-markdown"
+import TodoList from "./todo-list"
+import { getTodos } from "@/actions/todo"
 
 interface ChatInterfaceProps {
   onChatComplete?: () => void
@@ -28,29 +45,43 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
   const [isAttaching, setIsAttaching] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+   const [todos, setTodos] = useState<ITodo[]>([])
+  
+    const refreshTodos = useCallback(async () => {
+      try {
+        const fetchedTodos = await getTodos()
+        setTodos(fetchedTodos)
+      } catch (error) {
+        console.error("Failed to fetch todos:", error)
+      } finally {
+      }
+    }, [])
+  
+    useEffect(() => {
+      refreshTodos()
+    }, [refreshTodos])
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    isLoading,
+    setInput,
+  } = useChat({
     api: "/api/chat",
     onFinish: () => {
       if (onChatComplete) onChatComplete()
     },
   })
 
-  // Suggested prompts categorized
-  const suggestedPrompts = {
-    tasks: [
-      { text: "Show all my tasks", icon: "📋" },
-      { text: "Add a task to buy groceries", icon: "🛒" },
-      { text: "Find tasks related to work", icon: "💼" },
-      { text: "Mark my first task as completed", icon: "✅" },
-    ],
-    advanced: [
-      { text: "Create a weekly meal plan", icon: "🍽️" },
-      { text: "Set a reminder for tomorrow", icon: "⏰" },
-      { text: "Summarize my pending tasks", icon: "📊" },
-      { text: "Set priority levels for my tasks", icon: "🔢" },
-    ]
-  }
+  // Suggested prompts for conversation
+  const suggestedPrompts = [
+    { text: "Show all my tasks", icon: "📋" },
+    { text: "Add a task to buy groceries", icon: "🛒" },
+    { text: "Find tasks related to work", icon: "💼" },
+    { text: "Mark my first task as completed", icon: "✅" },
+  ]
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -59,9 +90,7 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
 
   // Focus textarea on mount and expansion
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.focus()
-    }
+    textareaRef.current?.focus()
   }, [isExpanded])
 
   const scrollToBottom = () => {
@@ -70,17 +99,15 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
 
   const handlePromptSelect = (prompt: string) => {
     setInput(prompt)
-    if (textareaRef.current) {
-      textareaRef.current.focus()
-    }
+    textareaRef.current?.focus()
   }
 
   const handleToggleExpand = () => {
-    setIsExpanded(!isExpanded)
+    setIsExpanded((prev) => !prev)
   }
 
   const handleAttachToggle = () => {
-    setIsAttaching(!isAttaching)
+    setIsAttaching((prev) => !prev)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -93,14 +120,14 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
   }
 
   const formatTimestamp = () => {
-    return new Date().toLocaleTimeString([], { 
-      hour: "2-digit", 
-      minute: "2-digit" 
+    return new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
     })
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-gradient-to-br from-background via-background/95 to-background/90 rounded-xl border shadow-xl">
+    <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden bg-gradient-to-br from-background via-background/95 to-background/90 rounded-xl border shadow-xl">
       {/* Chat header */}
       <div className="flex items-center justify-between p-4 border-b backdrop-blur-sm">
         <div className="flex items-center gap-3">
@@ -116,35 +143,34 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
           <div>
             <h2 className="font-semibold text-lg flex items-center gap-2">
               TaskMaster AI
-              <Badge variant="outline" className="bg-primary/10 text-xs font-medium text-primary border-primary/20 flex items-center gap-1">
+              <Badge
+                variant="outline"
+                className="bg-primary/10 text-xs font-medium text-primary border-primary/20 flex items-center gap-1"
+              >
                 <Sparkles className="h-3 w-3" /> AI Powered
               </Badge>
             </h2>
             <p className="text-xs text-muted-foreground">
-              {isLoading ? 
-                <span className="flex items-center gap-1"><RefreshCw className="h-3 w-3 animate-spin" /> Thinking...</span> : 
-                <span className="flex items-center gap-1"><Check className="h-3 w-3" /> Ready to assist</span>
-              }
+              {isLoading ? (
+                <span className="flex items-center gap-1">
+                  <RefreshCw className="h-3 w-3 animate-spin" /> Thinking...
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Ready to assist
+                </span>
+              )}
             </p>
           </div>
         </div>
-        
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>More options</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+
       </div>
 
-      {/* Chat messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
         <AnimatePresence initial={false}>
-          {messages.length === 0 ? (
+          {/* Show suggestion UI only if no messages exist and input is empty */}
+          {messages.length === 0 && input.trim() === "" ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -181,63 +207,38 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
               </div>
 
               <div className="space-y-3 max-w-md">
-                <h3 className="text-xl font-semibold">How can I help with your tasks today?</h3>
+                <h3 className="text-xl font-semibold">
+                  How can I help you with your tasks today?
+                </h3>
                 <p className="text-muted-foreground text-sm">
-                  I can help you manage your tasks through natural conversation. Try one of these examples to get started:
+                  I can help you manage your tasks through natural conversation.
+                  Try one of these examples to get started:
                 </p>
               </div>
-
-              <Tabs defaultValue="tasks" className="w-full max-w-md">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="tasks">Basic Tasks</TabsTrigger>
-                  <TabsTrigger value="advanced">Advanced</TabsTrigger>
-                </TabsList>
-                <TabsContent value="tasks" className="mt-0">
-                  <div className="grid grid-cols-2 gap-3 w-full">
-                    {suggestedPrompts.tasks.map((prompt, index) => (
-                      <motion.button
-                        key={index}
-                        className="flex items-center gap-2 p-3 text-sm text-left rounded-lg border bg-card hover:bg-accent transition-colors shadow-sm"
-                        onClick={() => handlePromptSelect(prompt.text)}
-                        whileHover={{ scale: 1.02, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
-                        whileTap={{ scale: 0.98 }}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 + index * 0.1 }}
-                      >
-                        <span className="text-xl">{prompt.icon}</span>
-                        <span className="truncate font-medium">{prompt.text}</span>
-                      </motion.button>
-                    ))}
-                  </div>
-                </TabsContent>
-                <TabsContent value="advanced" className="mt-0">
-                  <div className="grid grid-cols-2 gap-3 w-full">
-                    {suggestedPrompts.advanced.map((prompt, index) => (
-                      <motion.button
-                        key={index}
-                        className="flex items-center gap-2 p-3 text-sm text-left rounded-lg border bg-card hover:bg-accent transition-colors shadow-sm"
-                        onClick={() => handlePromptSelect(prompt.text)}
-                        whileHover={{ scale: 1.02, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
-                        whileTap={{ scale: 0.98 }}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 + index * 0.1 }}
-                      >
-                        <span className="text-xl">{prompt.icon}</span>
-                        <span className="truncate font-medium">{prompt.text}</span>
-                      </motion.button>
-                    ))}
-                  </div>
-                </TabsContent>
-              </Tabs>
+              <div className="grid grid-cols-2 gap-2">
+                {suggestedPrompts.map((prompt) => (
+                  <motion.button
+                    key={prompt.text}
+                    className="flex items-center max-w-xl gap-2 p-3 text-sm text-left rounded-lg border bg-card hover:bg-accent transition-colors shadow-sm"
+                    onClick={() => handlePromptSelect(prompt.text)}
+                    whileHover={{ scale: 1.02, boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
+                    whileTap={{ scale: 0.98 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    <span className="text-xl">{prompt.icon}</span>
+                    <span className="truncate font-medium">{prompt.text}</span>
+                  </motion.button>
+                ))}
+              </div>
             </motion.div>
           ) : (
             messages.map((message, index) => (
-              <ChatMessage 
-                key={message.id} 
-                message={message} 
-                isLast={index === messages.length - 1} 
+              <ChatMessage
+                key={message.id}
+                message={message}
+                isLast={index === messages.length - 1}
                 timestamp={formatTimestamp()}
               />
             ))
@@ -260,17 +261,31 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
                   <motion.div
                     className="h-2 w-2 rounded-full bg-primary/70"
                     animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, repeatType: "loop" }}
+                    transition={{
+                      duration: 1,
+                      repeat: Number.POSITIVE_INFINITY,
+                      repeatType: "loop",
+                    }}
                   />
                   <motion.div
                     className="h-2 w-2 rounded-full bg-primary/70"
                     animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, repeatType: "loop", delay: 0.2 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Number.POSITIVE_INFINITY,
+                      repeatType: "loop",
+                      delay: 0.2,
+                    }}
                   />
                   <motion.div
                     className="h-2 w-2 rounded-full bg-primary/70"
                     animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, repeatType: "loop", delay: 0.4 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Number.POSITIVE_INFINITY,
+                      repeatType: "loop",
+                      delay: 0.4,
+                    }}
                   />
                 </div>
               </Card>
@@ -279,6 +294,9 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
         </AnimatePresence>
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Chat messages */}
+      
 
       {/* Chat input */}
       <div className="p-4 border-t bg-background/95 backdrop-blur-sm">
@@ -292,37 +310,22 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
               placeholder="Type your message..."
               className={cn(
                 "pr-12 resize-none focus-visible:ring-1 focus-visible:ring-primary/30 transition-all",
-                isExpanded ? "min-h-[120px] max-h-[200px]" : "min-h-[56px] max-h-[56px]"
+                isExpanded
+                  ? "min-h-[120px] max-h-[200px]"
+                  : "min-h-[56px] max-h-[56px]"
               )}
               autoFocus
             />
-            
+
             <div className="absolute bottom-2 right-2 flex items-center gap-2">
-              {input.trim() === "" && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        type="button" 
-                        size="icon" 
-                        variant="ghost"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                        onClick={handleAttachToggle}
-                      >
-                        <PaperclipIcon className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Attach files</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-              
+       
+
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      type="button" 
-                      size="icon" 
+                    <Button
+                      type="button"
+                      size="icon"
                       variant="ghost"
                       className={cn(
                         "h-8 w-8 text-muted-foreground hover:text-foreground",
@@ -333,17 +336,19 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
                       <ChevronDown className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{isExpanded ? "Collapse" : "Expand"}</TooltipContent>
+                  <TooltipContent>
+                    {isExpanded ? "Collapse" : "Expand"}
+                  </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              
+
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      type="submit" 
-                      size="icon" 
-                      className="h-8 w-8 rounded-full shadow-sm" 
+                    <Button
+                      type="submit"
+                      size="icon"
+                      className="h-8 w-8 rounded-full shadow-sm"
                       disabled={isLoading || !input.trim()}
                     >
                       <Send className="h-4 w-4" />
@@ -356,37 +361,9 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
           </div>
 
           {/* Attachment panel */}
-          <AnimatePresence>
-            {isAttaching && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="mt-2 p-3 border rounded-lg bg-background/90 backdrop-blur-sm shadow-sm"
-              >
-                <div className="flex gap-2 flex-wrap">
-                  <Button variant="outline" size="sm" className="gap-2 group hover:bg-primary/10 hover:text-primary hover:border-primary/20">
-                    <ImagePlus className="h-4 w-4 group-hover:text-primary" />
-                    <span>Upload Image</span>
-                  </Button>
-                  <Button variant="outline" size="sm" className="gap-2 group hover:bg-primary/10 hover:text-primary hover:border-primary/20">
-                    <FileAudio className="h-4 w-4 group-hover:text-primary" />
-                    <span>Voice Message</span>
-                  </Button>
-                  <Button variant="outline" size="sm" className="gap-2 group hover:bg-primary/10 hover:text-primary hover:border-primary/20">
-                    <Clock className="h-4 w-4 group-hover:text-primary" />
-                    <span>Schedule</span>
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+      
         </form>
 
-        <div className="mt-2 text-xs text-center text-muted-foreground">
-          <p>TaskMaster AI helps you manage tasks through natural conversation</p>
-        </div>
       </div>
     </div>
   )
@@ -424,15 +401,15 @@ function ChatMessage({ message, isLast, timestamp }: ChatMessageProps) {
       >
         <Card
           className={cn(
-            "p-3 shadow-sm", 
-            isUser 
-              ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground" 
+            "p-3 shadow-sm",
+            isUser
+              ? "bg-gradient-to-br from-primary to-primary/90 text-primary-foreground"
               : "bg-muted/30 border-muted"
           )}
         >
-          <div className="whitespace-pre-wrap text-sm"> 
+          <div className="whitespace-pre-wrap text-sm">
             <ReactMarkdown>{message.content}</ReactMarkdown>
-           </div>
+          </div>
         </Card>
 
         <div className="text-xs text-muted-foreground px-1 flex items-center gap-1">
