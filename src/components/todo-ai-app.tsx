@@ -31,15 +31,15 @@ export default function TodoAIApp() {
   return (
 
 
-        <Card className="w-full  shadow-lg pb-0 border-slate-200 dark:border-slate-800 flex-1 flex flex-col">
-          <CardHeader className="pb-4">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="chat" className="flex items-center gap-2">
+        <Card className="w-full py-0  gap-0 shadow-lg pb-0 border-slate-200 dark:border-slate-800 flex-1 flex flex-col">
+          <CardHeader className="p-0 rounded-none h-12 md:h-16">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
+              <TabsList className="grid w-full grid-cols-2 p-0 h-full">
+                <TabsTrigger value="chat" className="flex items-center gap-2  h-full rounded-none p-0">
                   <MessageSquare className="h-4 w-4" />
                   <span>Chat Assistant</span>
                 </TabsTrigger>
-                <TabsTrigger value="todos" className="flex items-center gap-2">
+                <TabsTrigger value="todos" className="flex items-center gap-2 h-full  rounded-none p-0">
                   <ListTodo className="h-4 w-4" />
                   <span>My Tasks</span>
                   {todos.length > 0 && (
@@ -72,7 +72,7 @@ export default function TodoAIApp() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.3 }}
-                  className="flex-1 p-6"
+                  className="h-screen"
                 >
                   <TodoList todos={todos}  />
                 </motion.div>

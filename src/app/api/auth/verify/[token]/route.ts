@@ -4,12 +4,12 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   req: Request,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }>}
 ) {
   try {
     await dbConnect();
 
-    const { token } = params;
+    const { token } = await params;
 
     // Find the user with the matching verification token
     const user = await User.findOne({ verificationToken: token });

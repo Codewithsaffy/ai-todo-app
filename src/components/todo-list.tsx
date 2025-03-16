@@ -10,9 +10,9 @@ interface TodoListProps {
 
 export default function TodoList({ todos }: TodoListProps) {
   return (
-    <div className="p-4">
+    <div className="p-4 max-w-4xl mx-auto">
       {todos.length === 0 ? (
-        <div className="text-center p-12 border border-dashed rounded-lg">
+        <div className="text-center p-12  border border-dashed rounded-lg">
           <h3 className="text-lg font-medium mb-2">No tasks found</h3>
           <p className="text-muted-foreground mb-4">
             Add your tasks to get started.

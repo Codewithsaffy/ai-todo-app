@@ -1,134 +1,112 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState, useRef, useEffect, useCallback } from "react"
-import { useChat } from "@ai-sdk/react"
-import { AnimatePresence, motion } from "motion/react"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Card } from "@/components/ui/card"
+import { useState, useRef, useEffect } from "react";
+import { useChat } from "@ai-sdk/react";
+import { AnimatePresence, motion } from "motion/react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@/components/ui/tooltip";
 import {
   Send,
-  PaperclipIcon,
   Sparkles,
   Bot,
   User,
   ChevronDown,
-  ImagePlus,
-  FileAudio,
-  MoreHorizontal,
   Clock,
   Check,
   RefreshCw,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import type { Message } from "ai"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import ReactMarkdown from "react-markdown"
-import TodoList from "./todo-list"
-import { getTodos } from "@/actions/todo"
+  Trash2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { Message } from "ai";
+import { Badge } from "@/components/ui/badge";
+import ReactMarkdown from "react-markdown";
 
 interface ChatInterfaceProps {
-  onChatComplete?: () => void
+  onChatComplete?: () => void;
 }
 
 export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
-  const [isAttaching, setIsAttaching] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-   const [todos, setTodos] = useState<ITodo[]>([])
-  
-    const refreshTodos = useCallback(async () => {
-      try {
-        const fetchedTodos = await getTodos()
-        setTodos(fetchedTodos)
-      } catch (error) {
-        console.error("Failed to fetch todos:", error)
-      } finally {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const loadPersistedMessages = (): Message[] => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("chatMessages");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (error) {
+          console.error("Error parsing saved messages:", error);
+        }
       }
-    }, [])
-  
-    useEffect(() => {
-      refreshTodos()
-    }, [refreshTodos])
+    }
+    return [];
+  };
 
-  const {
-    messages,
-    input,
-    handleInputChange,
-    handleSubmit,
-    isLoading,
-    setInput,
-  } = useChat({
-    api: "/api/chat",
-    onFinish: () => {
-      if (onChatComplete) onChatComplete()
-    },
-  })
+  const persistedMessages = loadPersistedMessages();
 
-  // Suggested prompts for conversation
+  const { messages, input, handleInputChange, handleSubmit, setMessages, isLoading, setInput } =
+    useChat({
+      api: "/api/chat",
+      onFinish: () => onChatComplete?.(),
+      initialMessages: persistedMessages,
+    });
+
+  useEffect(() => {
+    localStorage.setItem("chatMessages", JSON.stringify(messages));
+  }, [messages]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, [isExpanded]);
+
   const suggestedPrompts = [
     { text: "Show all my tasks", icon: "📋" },
     { text: "Add a task to buy groceries", icon: "🛒" },
     { text: "Find tasks related to work", icon: "💼" },
     { text: "Mark my first task as completed", icon: "✅" },
-  ]
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  // Focus textarea on mount and expansion
-  useEffect(() => {
-    textareaRef.current?.focus()
-  }, [isExpanded])
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
+  ];
 
   const handlePromptSelect = (prompt: string) => {
-    setInput(prompt)
-    textareaRef.current?.focus()
-  }
+    setInput(prompt);
+    textareaRef.current?.focus();
+  };
 
   const handleToggleExpand = () => {
-    setIsExpanded((prev) => !prev)
-  }
-
-  const handleAttachToggle = () => {
-    setIsAttaching((prev) => !prev)
-  }
+    setIsExpanded((prev) => !prev);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Submit on Enter (but not with Shift+Enter)
     if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      const form = e.currentTarget.closest("form")
-      if (form) form.requestSubmit()
+      e.preventDefault();
+      const form = e.currentTarget.closest("form");
+      if (form) form.requestSubmit();
     }
-  }
+  };
 
-  const formatTimestamp = () => {
-    return new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
+  const formatTimestamp = () =>
+    new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  const handleClearChat = () => {
+    localStorage.removeItem("chatMessages");
+    setMessages([]);
+  };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] overflow-hidden bg-gradient-to-br from-background via-background/95 to-background/90 rounded-xl border shadow-xl">
-      {/* Chat header */}
+    <div className="flex flex-col h-[calc(100vh-70px)] overflow-hidden bg-gradient-to-br from-background via-background/95 to-background/90 border shadow-xl">
       <div className="flex items-center justify-between p-4 border-b backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -163,13 +141,16 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
             </p>
           </div>
         </div>
-
+        <div>
+          <Button variant="outline" size="sm" onClick={handleClearChat}>
+            <Trash2 className="h-4 w-4" />
+            <span className="ml-2 hidden sm:inline">Clear Chat</span>
+          </Button>
+        </div>
       </div>
 
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-primary/10 scrollbar-track-transparent">
         <AnimatePresence initial={false}>
-          {/* Show suggestion UI only if no messages exist and input is empty */}
           {messages.length === 0 && input.trim() === "" ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -181,38 +162,21 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
                 <Bot className="h-12 w-12 text-primary" />
                 <motion.div
                   className="absolute inset-0 rounded-full border-2 border-primary/30"
-                  animate={{
-                    scale: [1, 1.1, 1],
-                    opacity: [1, 0.5, 1],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "easeInOut",
-                  }}
+                  animate={{ scale: [1, 1.1, 1], opacity: [1, 0.5, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 />
                 <motion.div
                   className="absolute inset-0 rounded-full border border-primary/10"
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [0.7, 0.2, 0.7],
-                  }}
-                  transition={{
-                    duration: 3,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "easeInOut",
-                    delay: 0.5,
-                  }}
+                  animate={{ scale: [1, 1.2, 1], opacity: [0.7, 0.2, 0.7] }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
                 />
               </div>
-
               <div className="space-y-3 max-w-md">
                 <h3 className="text-xl font-semibold">
                   How can I help you with your tasks today?
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  I can help you manage your tasks through natural conversation.
-                  Try one of these examples to get started:
+                  I can help you manage your tasks through natural conversation. Try one of these examples:
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -243,7 +207,6 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
               />
             ))
           )}
-
           {isLoading && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -261,31 +224,17 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
                   <motion.div
                     className="h-2 w-2 rounded-full bg-primary/70"
                     animate={{ scale: [1, 1.2, 1] }}
-                    transition={{
-                      duration: 1,
-                      repeat: Number.POSITIVE_INFINITY,
-                      repeatType: "loop",
-                    }}
+                    transition={{ duration: 1, repeat: Infinity, repeatType: "loop" }}
                   />
                   <motion.div
                     className="h-2 w-2 rounded-full bg-primary/70"
                     animate={{ scale: [1, 1.2, 1] }}
-                    transition={{
-                      duration: 1,
-                      repeat: Number.POSITIVE_INFINITY,
-                      repeatType: "loop",
-                      delay: 0.2,
-                    }}
+                    transition={{ duration: 1, repeat: Infinity, repeatType: "loop", delay: 0.2 }}
                   />
                   <motion.div
                     className="h-2 w-2 rounded-full bg-primary/70"
                     animate={{ scale: [1, 1.2, 1] }}
-                    transition={{
-                      duration: 1,
-                      repeat: Number.POSITIVE_INFINITY,
-                      repeatType: "loop",
-                      delay: 0.4,
-                    }}
+                    transition={{ duration: 1, repeat: Infinity, repeatType: "loop", delay: 0.4 }}
                   />
                 </div>
               </Card>
@@ -295,89 +244,60 @@ export default function ChatInterface({ onChatComplete }: ChatInterfaceProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Chat messages */}
-      
-
-      {/* Chat input */}
-      <div className="p-4 border-t bg-background/95 backdrop-blur-sm">
-        <form onSubmit={handleSubmit} className="relative">
-          <div className="relative">
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your message..."
-              className={cn(
-                "pr-12 resize-none focus-visible:ring-1 focus-visible:ring-primary/30 transition-all",
-                isExpanded
-                  ? "min-h-[120px] max-h-[200px]"
-                  : "min-h-[56px] max-h-[56px]"
-              )}
-              autoFocus
-            />
-
-            <div className="absolute bottom-2 right-2 flex items-center gap-2">
-       
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className={cn(
-                        "h-8 w-8 text-muted-foreground hover:text-foreground",
-                        isExpanded && "rotate-180"
-                      )}
-                      onClick={handleToggleExpand}
-                    >
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {isExpanded ? "Collapse" : "Expand"}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="submit"
-                      size="icon"
-                      className="h-8 w-8 rounded-full shadow-sm"
-                      disabled={isLoading || !input.trim()}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Send message</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-
-          {/* Attachment panel */}
-      
-        </form>
-
-      </div>
+      <form onSubmit={handleSubmit} className="relative max-w-4xl mx-auto w-full my-4">
+        <Textarea
+          ref={textareaRef}
+          value={input}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          placeholder="Type your message..."
+          className={cn(
+            "pr-12 resize-none focus-visible:ring-1 focus-visible:ring-primary/30 transition-all",
+            isExpanded ? "min-h-[120px] max-h-[200px]" : "min-h-[80px] max-h-[80px]"
+          )}
+          autoFocus
+        />
+        <div className="absolute bottom-2 right-2 flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className={cn("h-8 w-8 text-muted-foreground hover:text-foreground", isExpanded && "rotate-180")}
+                  onClick={handleToggleExpand}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{isExpanded ? "Collapse" : "Expand"}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button type="submit" size="icon" className="h-8 w-8 rounded-full shadow-sm" disabled={isLoading || !input.trim()}>
+                  <Send className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Send message</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </form>
     </div>
-  )
+  );
 }
 
 interface ChatMessageProps {
-  message: Message
-  isLast: boolean
-  timestamp: string
+  message: Message;
+  isLast: boolean;
+  timestamp: string;
 }
 
-function ChatMessage({ message, isLast, timestamp }: ChatMessageProps) {
-  const isUser = message.role === "user"
-
+function ChatMessage({ message, timestamp }: ChatMessageProps) {
+  const isUser = message.role === "user";
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -392,13 +312,7 @@ function ChatMessage({ message, isLast, timestamp }: ChatMessageProps) {
           </AvatarFallback>
         </Avatar>
       )}
-
-      <motion.div
-        className={cn("max-w-[75%] space-y-1")}
-        initial={{ scale: 0.95 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 0.2 }}
-      >
+      <motion.div className={cn("max-w-[75%] space-y-1")}>
         <Card
           className={cn(
             "p-3 shadow-sm",
@@ -411,7 +325,6 @@ function ChatMessage({ message, isLast, timestamp }: ChatMessageProps) {
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         </Card>
-
         <div className="text-xs text-muted-foreground px-1 flex items-center gap-1">
           <span>{isUser ? "You" : "AI Assistant"}</span>
           <span>•</span>
@@ -421,7 +334,6 @@ function ChatMessage({ message, isLast, timestamp }: ChatMessageProps) {
           </span>
         </div>
       </motion.div>
-
       {isUser && (
         <Avatar className="h-8 w-8 mt-1 ring-2 ring-secondary/20">
           <AvatarFallback className="bg-secondary text-secondary-foreground">
@@ -430,5 +342,5 @@ function ChatMessage({ message, isLast, timestamp }: ChatMessageProps) {
         </Avatar>
       )}
     </motion.div>
-  )
+  );
 }

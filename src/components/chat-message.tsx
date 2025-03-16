@@ -8,7 +8,6 @@ interface ChatMessageProps {
 }
 
 export default function ChatMessage({ message }: ChatMessageProps) {
-  console.log(message)
   return (
     <div
       className={cn("flex items-start gap-4 rounded-lg p-4", message.role === "user" ? "bg-muted/50" : "bg-primary/5")}
